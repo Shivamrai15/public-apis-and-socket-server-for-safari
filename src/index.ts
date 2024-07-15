@@ -3,9 +3,14 @@ import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
 import { RoomManager } from "./managers/room-manager";
-import { LEAVE_ROOM, JOIN_ROOM, ENQUEUE, DEQUEUE, PUSH, POP, PRIORITY_ENQUEUE, CLEAR, SHIFT_TOP, REPLACE, REMOVE, PLAYNEXT, PLAY, PAUSE, SEEK } from "./libs/events";
+import { LEAVE_ROOM, JOIN_ROOM, ENQUEUE, DEQUEUE, PUSH, POP, PRIORITY_ENQUEUE, CLEAR, SHIFT_TOP, REPLACE, REMOVE, PLAYNEXT, PLAY, PAUSE, SEEK, END_ROOM } from "./libs/events";
 import { Album, Song } from "./libs/types";
 import { EventManager } from "./managers/event-manger";
+import { albumRouter } from "./routes/album.route";
+import { artistRouter } from "./routes/artist.route";
+import { genreRouter } from "./routes/genre.route";
+import { songRouter } from "./routes/song.route";
+import { metaRouter } from "./routes/meta.route";
 
 const PORT = process.env.PORT! || 8000;
 
@@ -25,6 +30,12 @@ app.use(cors({
 }));
 
 
+app.use("/api/v2/song", songRouter);
+app.use("/api/v2/album", albumRouter);
+app.use("/api/v2/artist", artistRouter);
+app.use("/api/v2/genre", genreRouter);
+app.use("/api/v2/metadata", metaRouter);
+
 const roomManager = new RoomManager();
 const eventManager = new EventManager();
 
@@ -37,6 +48,10 @@ io.on("connection", (socket)=>{
 
     socket.on(LEAVE_ROOM, ()=>{
         roomManager.leaveRoom(socket, io);
+    });
+
+    socket.on(END_ROOM, (payload: { roomId: string })=>{
+        roomManager.end(payload.roomId, io);
     });
 
     socket.on(ENQUEUE, (payload: { roomId: string, songs : ( Song & { album : Album } )[], clear?: boolean })=>{

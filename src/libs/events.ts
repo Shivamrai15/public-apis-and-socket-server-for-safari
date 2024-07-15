@@ -1,6 +1,7 @@
 const UPDATE_USER = "update user";
 const LEAVE_ROOM = "leave room";
 const JOIN_ROOM = "join room";
+const END_ROOM = "end room";
 const SEEK = "seek";
 const PLAY = "play";
 const PAUSE = "pause";
@@ -28,6 +29,7 @@ export {
     ENQUEUE,
     DEQUEUE,
     PLAYNEXT,
+    END_ROOM,
     JOIN_ROOM,
     SHIFT_TOP,
     LEAVE_ROOM,

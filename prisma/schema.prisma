@@ -1,14 +1,276 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  name            String?
+  email           String          @unique
+  password        String?
+  image           String?
+  accountVerified DateTime?
+  emailVerified   DateTime?
+  history         History[]
+  accounts        Account[]
+  privateSession  Boolean         @default(false)
+  sessions        Session[]
+  playlists       PlayList[]
+  likedSongs      LikedSongs[]
+  followingIds    String[]        @db.ObjectId
+  following       Artist[]        @relation(fields: [followingIds], references: [id])
+  customer        Customer?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Album {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  name    String
+  image   String
+  color   String
+  release DateTime
+  songs   Song[]
+
+  @@unique([id, image])
+  @@index([name])
+}
+
+model Song {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  image     String
+  url       String
+  duration  Int
+  albumId   String   @db.ObjectId
+  album     Album    @relation(fields: [albumId], references: [id])
+  artistIds String[] @db.ObjectId
+  artists   Artist[] @relation(fields: [artistIds], references: [id])
+
+  @@index([albumId, name])
+}
+
+model LikedSongs {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  songId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([songId, userId])
+  @@index([userId])
+}
+
+model Artist {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  image       String
+  thumbnail   String?
+  about       String   @db.String
+  songIds     String[] @db.ObjectId
+  songs       Song[]   @relation(fields: [songIds], references: [id])
+  followerIds String[] @db.ObjectId
+  followers   User[]   @relation(fields: [followerIds], references: [id])
+
+  @@index([name])
+}
+
+model PlayList {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  image       String?
+  description String?
+  color       String?
+  userId      String         @db.ObjectId
+  private     Boolean        @default(true)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  songs       PlaylistSong[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([userId, name])
+}
+
+model PlaylistSong {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  songId     String   @db.ObjectId
+  playlistId String   @db.ObjectId
+  playlist   PlayList @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([songId, playlistId])
+}
+
+model History {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  songId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model SongPlays {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  songId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([songId, userId])
+}
+
+model Genre {
+  id    String      @id @default(auto()) @map("_id") @db.ObjectId
+  name  String
+  image String
+  color String
+  songs GenreSong[]
+  remix Remix[]
+}
+
+model Remix {
+  id      String      @id @default(auto()) @map("_id") @db.ObjectId
+  name    String
+  image   String
+  color   String
+  songs   RemixSong[]
+  genreId String      @db.ObjectId
+  genre   Genre       @relation(fields: [genreId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GenreSong {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  songId    String   @db.ObjectId
+  genreId   String   @db.ObjectId
+  genre     Genre    @relation(fields: [genreId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([genreId])
+}
+
+model RemixSong {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  songId    String   @db.ObjectId
+  remixId   String   @db.ObjectId
+  remix     Remix    @relation(fields: [remixId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([remixId])
+}
+
+model VerificationToken {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  token   String
+  expires DateTime
+  email   String
+
+  @@index([email])
+}
+
+model ForgetPasswordToken {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  token   String
+  expires DateTime
+  email   String
+
+  @@index([email])
+}
+
+model Subscription {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String   @db.ObjectId
+  stripeCustomerId       String
+  stripeSubscriptionId   String
+  stripePriceId          String
+  stripeCurrentPeriodEnd DateTime
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model Price {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  priceId           String  @unique @db.String
+  productId         String  @unique @db.String
+  product           Product @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  active            Boolean
+  description       String?
+  unit_amount       Int?
+  currency          String
+  pricing_type      String
+  interval          String
+  interval_count    Int?
+  trial_period_days Int?
+  metadeta          Json
+}
+
+model Product {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  productId   String  @unique @db.String
+  active      Boolean
+  name        String
+  description String?
+  image       String?
+  metadeta    Json
+  price       Price?
+}
+
+model Customer {
+  id               String @id @default(auto()) @map("_id") @db.ObjectId
+  user             User   @relation(fields: [id], references: [id], onDelete: Cascade)
+  stripeCustomerId String @unique
+}
+
+model Lyrics {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  songId String @unique @db.ObjectId
+  lyrics Json
 }
