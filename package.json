@@ -4,7 +4,8 @@
   "description": "API's for safari music",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev" : "node dist/index.js",
+    "build" : "tsc -b"
   },
   "author": "Shivam Rai",
   "license": "ISC",

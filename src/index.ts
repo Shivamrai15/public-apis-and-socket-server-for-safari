@@ -11,6 +11,7 @@ import { artistRouter } from "./routes/artist.route";
 import { genreRouter } from "./routes/genre.route";
 import { songRouter } from "./routes/song.route";
 import { metaRouter } from "./routes/meta.route";
+import { searchRouter } from "./routes/search.route";
 
 const PORT = process.env.PORT! || 8000;
 
@@ -35,6 +36,7 @@ app.use("/api/v2/album", albumRouter);
 app.use("/api/v2/artist", artistRouter);
 app.use("/api/v2/genre", genreRouter);
 app.use("/api/v2/metadata", metaRouter);
+app.use("/api/v2/search", searchRouter);
 
 const roomManager = new RoomManager();
 const eventManager = new EventManager();
