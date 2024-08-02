@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "description": "API's for safari music",
   "main": "index.js",
+  "postinstall": "prisma generate",
   "scripts": {
     "dev" : "node dist/index.js",
     "build" : "tsc -b"
