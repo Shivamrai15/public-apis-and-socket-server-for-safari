@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { db } from "../libs/db";
+import { Album, Song } from "../libs/types";
 
 const songRouter = Router();
+const BATCH = 10;
 
 songRouter.get("/", async(req, res)=>{
     try {
@@ -35,35 +37,70 @@ songRouter.get("/", async(req, res)=>{
 songRouter.get("/most-played", async(req, res)=>{
     try {
         
-        const mostPlayedSongs = await db.songPlays.groupBy({
-            by: ['songId'],
-            _count: {
-                songId: true
-            },
-            orderBy: {
-                _count: {
-                songId: 'desc'
-                }
-            },
-            take: 10
+        const { cursor } =  req.query;
+        
+        let songs : (Song & { album: Album })[] = [];
+
+        if (cursor) {
+            songs = await db.song.findMany({
+                where : {
+                    view : {
+                        some : {}
+                    }
+                },
+                include : {
+                    album : true
+                },
+                orderBy : [
+                    {
+                        view : {
+                            _count : "desc"
+                        }
+                    },
+                    {
+                        name : "asc"
+                    }
+                ],
+                skip : 1,
+                cursor : {
+                    id : cursor as string
+                },
+                take : BATCH 
+            });
+        } else {
+            songs = await db.song.findMany({
+                where : {
+                    view : {
+                        some : {}
+                    }
+                },
+                include : {
+                    album : true
+                },
+                orderBy : [
+                    {
+                        view : {
+                            _count : "desc"
+                        }
+                    },
+                    {
+                        name : "asc"
+                    }
+                ],
+                take : BATCH 
+            });
+        }
+
+        let nextCursor = null;
+
+        if(songs.length === BATCH){
+            nextCursor = songs[BATCH-1].id
+        }
+
+        return res.json({
+            items : songs,
+            nextCursor
         });
-
-        const mostPlayedSongIds = mostPlayedSongs.map((song)=>song.songId);
-
-        const songs = await db.song.findMany({
-            where : {
-                id : {
-                    in : mostPlayedSongIds
-                }
-            },
-            include : {
-                album : true
-            }
-        });
-
-        songs.sort((a, b)=>mostPlayedSongIds.indexOf(a.id)-mostPlayedSongIds.indexOf(b.id));
-
-        return res.json(songs).status(200);
 
     } catch (error) {
         return res.send("Internal server error").status(500);

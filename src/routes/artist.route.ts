@@ -2,8 +2,10 @@ import { Router } from "express";
 import { db } from "../libs/db";
 import { Album, Song } from "@prisma/client";
 
-const artistRouter = Router();
 const SONGS_BATCH = 10;
+const DISCOGRAPHY_BATCH = 6;
+
+const artistRouter = Router();
 
 artistRouter.get("/", async(req, res)=>{
     try {
@@ -40,12 +42,13 @@ artistRouter.get("/views", async(req, res)=>{
             return res.send("Artist Id is missing").status(401);
         }
 
-        const artist = await db.artist.findUnique({
+        const artist = await db.view.count({
             where : {
-                id : id as string
-            },
-            select : {
-                songIds : true
+                song : {
+                    artistIds : {
+                        has : id as string
+                    }
+                }
             }
         });
 
@@ -53,15 +56,7 @@ artistRouter.get("/views", async(req, res)=>{
             return res.send("Artist not found").status(404);
         }
 
-        const artistViews = await db.songPlays.count({
-            where : {
-                songId : {
-                    in : artist.songIds
-                }
-            }
-        });
-
-        return res.json({views: artistViews});
+        return res.json({ views : artist });
 
     } catch (error) {
         return res.send("Internal server error").status(500);
@@ -148,6 +143,96 @@ artistRouter.get("/songs", async(req, res)=>{
         return res.send("Internal server error").status(500);
     }
 })
+
+
+artistRouter.get("/discography", async(req, res)=>{
+    try {
+        
+        const { id, cursor } = req.query;
+        if (!id) {
+            return res.send("Missing Artist Id").status(400);
+        }
+
+        let albums : ( Album & {songs : (Song & {artists : ({ id: string, name: string })[]})[] } )[] = [];
+
+        if (cursor) {
+            albums = await db.album.findMany({
+                where : {
+                    songs : {
+                        some : {
+                            artistIds : {
+                                has : id as string
+                            }
+                        }
+                    }
+                },
+                include : {
+                    songs : {
+                        include : {
+                            artists : {
+                                select : {
+                                    id : true,
+                                    name : true
+                                }
+                            }
+                        }
+                    }
+                },
+                orderBy : {
+                    release : "desc"
+                },
+                take : DISCOGRAPHY_BATCH,
+                skip : 1,
+                cursor : {
+                    id : cursor as string
+                },
+            });
+        } else {
+            albums = await db.album.findMany({
+                where : {
+                    songs : {
+                        some : {
+                            artistIds : {
+                                has : id as string
+                            }
+                        }
+                    }
+                },
+                include : {
+                    songs : {
+                        include : {
+                            artists : {
+                                select : {
+                                    id : true,
+                                    name : true
+                                }
+                            }
+                        }
+                    }
+                },
+                orderBy : {
+                    release : "desc"
+                },
+                take : DISCOGRAPHY_BATCH,
+            });
+        } 
+
+        let nextCursor = null;
+
+        if(albums.length === DISCOGRAPHY_BATCH){
+            nextCursor = albums[DISCOGRAPHY_BATCH-1].id
+        }
+
+        return res.json({
+            items : albums,
+            nextCursor
+        })
+
+    } catch (error) {
+        console.log("DISCOGRAPHY API ERROR", error);
+        return res.send("Internal server error").status(500);
+    }
+});
 
 
 export { artistRouter };
