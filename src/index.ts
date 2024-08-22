@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import http from "http";
+import { rateLimit } from "express-rate-limit";
 import { Server } from "socket.io";
 import { RoomManager } from "./managers/room-manager";
 import { LEAVE_ROOM, JOIN_ROOM, ENQUEUE, DEQUEUE, PUSH, POP, PRIORITY_ENQUEUE, CLEAR, SHIFT_TOP, REPLACE, REMOVE, PLAYNEXT, PLAY, PAUSE, SEEK, END_ROOM } from "./libs/events";
@@ -12,8 +13,10 @@ import { genreRouter } from "./routes/genre.route";
 import { songRouter } from "./routes/song.route";
 import { metaRouter } from "./routes/meta.route";
 import { searchRouter } from "./routes/search.route";
+import { updateRouter } from "./routes/update.route";
 
-const PORT = process.env.PORT! || 8000;
+
+const PORT = process.env.PORT! || 8080;
 
 const app = express();
 const server = http.createServer(app);
@@ -24,6 +27,15 @@ const io = new Server(server, {
     }
 });
 
+const limiter = rateLimit({
+    windowMs : 1000,
+    limit : 50,
+    standardHeaders : "draft-7",
+    legacyHeaders : false
+});
+
+
+app.use(limiter);
 app.use(express.json());
 app.use(cors({
     origin: process.env.CLIENT || "http://localhost:3000",
@@ -37,6 +49,9 @@ app.use("/api/v2/artist", artistRouter);
 app.use("/api/v2/genre", genreRouter);
 app.use("/api/v2/metadata", metaRouter);
 app.use("/api/v2/search", searchRouter);
+app.use("/api/v2/update", updateRouter)
+
+
 
 const roomManager = new RoomManager();
 const eventManager = new EventManager();
@@ -113,6 +128,7 @@ io.on("connection", (socket)=>{
     });
 
 });
+
 
 
 server.listen(PORT, ()=>{
